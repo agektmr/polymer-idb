@@ -1,0 +1,166 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<dom-module id="idb-database">
+  <style>
+    :host {
+      display: none;
+    }
+  </style>
+  <template>
+    <content></content>
+  </template>
+</dom-module>
+<script>
+  // Cache connetions to open database
+  var database = {};
+
+  Polymer({
+    is: 'idb-database',
+    properties: {
+      name: {
+        type: String,
+        value: ''
+      },
+      version: Number,
+      db: {
+        type: Object,
+        value: {}
+      },
+      dbReady: {
+        type: Boolean,
+        value: false
+      },
+      isReady: {
+        type: Object,
+        value: null
+      },
+      objectStores: {
+        type: Array
+      },
+    },
+    detached: function() {
+      this.db.close();
+    },
+    ready: function() {
+      // Is indexedDB available?
+      if (!window.indexedDB) {
+        console.error('idb not available on this browser');
+        return;
+      }
+
+      // Check if attributes are properly set
+      if (!this.name || !this.version) {
+        console.error('You need to set `name` and `version` to enable `idb-database` element.');
+        return;
+      }
+
+      this.objectStores = Polymer.dom(this).querySelectorAll("idb-object-store");
+      for(var i=0; i< this.objectStores.length; i++) {
+         this.objectStores[i].database = this;
+      }
+
+      var that = this;
+
+      // Open the database
+      this.open();
+      this.isReady.then(function() {
+        that.dbReady = true;
+        that.fire('idb-ready');
+      }, function() {
+        that.fire('idb-error');
+      });
+    },
+    /**
+     * Use database with given name if already opened. Otherwise, open one.
+     */
+    open: function() {
+      var that = this;
+      this.isReady = new Promise(function(resolve, reject) {
+        // If the database is already open, use it
+        if (database[that.name]) {
+          that.db = database[that.name];
+          console.log('idb already open');
+          resolve();
+        }
+
+        // Otherwise, open it
+        var req = window.indexedDB.open(that.name, that.version);
+        req.onsuccess = function(e) {
+          that.db = e.target.result;
+          database[that.name] = that.db;
+          resolve();
+        };
+        req.onblocked = function(e) {
+          error = e;
+          console.error(e);
+          reject();
+        };
+        req.onerror = function(e) {
+          error = e;
+          console.error(e);
+          reject();
+        };
+        req.onupgradeneeded = function(e) {
+          that.db = e.target.result;
+          database[that.name] = that.db;
+          for(var i=0; i< that.objectStores.length; i++) {
+            // TODO: Should we delete existing stores upon upgrade?
+            // Create object stores if they don't exist
+            that.objectStores[i].createObjectStore();
+          }
+        };
+      });
+    },
+    /**
+     * Deletes database with given name
+     */
+    delete: function() {
+      // Delete the database
+      var req = window.indexedDB.deleteDatabase(this.name);
+      this.db = undefined;
+      delete database[this.name];
+    },
+    /**
+     * Creates an object store if it doesn't exist
+     * @param  {Object} name A object store name to create
+     * @param  {String} keyPath The key path of object store to create
+     */
+    createObjectStore: function(name, keyPath) {
+      // Does the object store exist?
+      if (!this.db.objectStoreNames.contains(name)) {
+        var options = null;
+        // If `key-path` is configured, set it as a key
+        if (keyPath) {
+          options = {keyPath: keyPath};
+        }
+        // Create the object store
+        this.db.createObjectStore(name, options);
+      }
+    },
+    /**
+     * Deletes an object store if exists
+     * @param  {Object} name A object store name to delete
+     */
+    deleteObjectStore: function(name) {
+      // Does the object store exist?
+      if (this.db.objectStoreNames.contains(name)) {
+        // Delete the object store
+        this.db.deleteObjectStore(name);
+      }
+    },
+    /**
+     * Returns promise that contains IndexedDB transaction
+     * @param  {Object} name A object store name for transaction
+     * @return {Promise} Promise with idb transaction
+     */
+    transaction: function(name) {
+      var that = this;
+      return new Promise(function(resolve, reject) {
+        that.isReady.then(function() {
+          // Return a transaction
+          resolve(that.db.transaction(name, 'readwrite'));
+        });
+      });
+    },
+  });
+</script>

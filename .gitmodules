@@ -1,0 +1,6 @@
+[submodule "polymer"]
+	path = polymer
+	url = git@github.com:Polymer/polymer.git
+[submodule "iron-meta"]
+	path = iron-meta
+	url = git@github.com:PolymerElements/iron-meta.git

@@ -1,0 +1,128 @@
+<html>
+  <head>
+    <title>Indexed DB Example</title>
+    <script src="bower_components/webcomponentsjs/webcomponents-lite.min.js"></script>
+    <link rel="import" href="idb-database.html">
+    <link rel="import" href="idb-object-store.html">
+  </head>
+  <body>
+    <idb-database id="db" name="idb-node-sample" version="1">
+      <idb-object-store id="db-bookmarks" name="bookmarks" key-path="url"></idb-object-store>
+      <idb-object-store id="db-specs"     name="specs"     key-path="name"></idb-object-store>
+    </idb-database>
+    <template is="dom-bind" id="t1">
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th><th>Url</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template is="dom-repeat" items="{{table}}">
+          <tr>
+            <td>[[item.title]]</td><td>[[item.url]]</td>
+          </tr>
+          </template>
+        </tbody>
+      </table>
+    </template>
+    <template is="dom-bind" id="t2">
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th><th>Url</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template is="dom-repeat" items="{{table}}">
+          <tr>
+            <td>[[item.name]]</td><td>[[item.url]]</td>
+          </tr>
+          </template>
+        </tbody>
+      </table>
+    </template>
+    <script>
+      var idb = document.querySelector('idb-database');
+      idb.addEventListener('idb-ready', function() {
+        console.log('database ready');
+
+        var bookmarks = document.querySelector('#db-bookmarks');
+        bookmarks.getAll().then(function(data) {
+          document.querySelector('#t1').table = data;
+        });
+
+        // Bulk input of initial data
+        bookmarks.putBulk([
+          {
+            "title":"Expressions - Polymer",
+            "url":"https://www.polymer-project.org/docs/polymer/expressions.html"
+          },
+          {
+            "title":"Polymer core elements - Polymer",
+            "url":"https://www.polymer-project.org/docs/elements/core-elements.html#core-collapse"
+          },
+          {
+            "title":"FAQ - Polymer",
+            "url":"https://www.polymer-project.org/resources/faq.html"
+          },
+          {
+            "title":"core-icons",
+            "url":"http://polymer.github.io/core-icons/components/core-icons/demo.html"
+          },
+          {
+            "title":"Material design with Polymer - Polymer",
+            "url":"https://www.polymer-project.org/docs/elements/material.html"
+          },
+          {
+            "title":"Tender Surrender",
+            "url":"http://localhost:8000/"
+          },
+          {
+            "title":"Chrome ウェブストア - アプリ",
+            "url":"https://chrome.google.com/webstore/detail/project-tab-manager/iapdnheekciiecjijobcglkcgeckpoia"
+          },
+          {
+            "title":"App Structure | Android Developers",
+            "url":"https://developer.android.com/design/patterns/app-structure.html"
+          }
+        ]).then(function() {
+          console.log('bookmarks saved');
+        });
+
+        // Getting data
+        bookmarks.get('https://www.polymer-project.org/docs/elements/material.html').then(function(item) {
+          console.log('got data with a key of "https://www.polymer-project.org/docs/elements/material.html"', item);
+        });
+
+        var specs = document.querySelector('#db-specs');
+        specs.getAll().then(function(data) {
+          document.querySelector('#t2').table = data;
+        });
+
+        // Bulk input of initial data
+        specs.putBulk([
+          {
+            "name":"Custom Elements",
+            "url":"http://w3c.github.io/webcomponents/spec/custom/"
+          },
+          {
+            "name":"HTML Imports",
+            "url":"http://w3c.github.io/webcomponents/spec/imports/"
+          },
+          {
+            "name":"Templates",
+            "url":"https://html.spec.whatwg.org/multipage/scripting.html#the-template-element"
+          },
+          {
+            "name":"Shadow DOM",
+            "url":"http://w3c.github.io/webcomponents/spec/shadow/"
+          }
+        ]).then(function() {
+          console.log('spec data saved');
+        });
+
+      });
+    </script>
+  </body>
+</html>

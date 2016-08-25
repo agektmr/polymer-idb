@@ -1,0 +1,192 @@
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../iron-meta/iron-meta.html">
+
+<dom-module id="idb-object-store">
+  <style>
+    :host {
+      display: none;
+    }
+  </style>
+</dom-module>
+<script>
+  Polymer({
+    is: 'idb-object-store',
+    properties: {
+      database: {
+        type: Object
+      },
+      name: {
+        type: Object,
+        value: ''
+      },
+      keyPath: {
+        type: String,
+        value: ''
+      },
+      metaName: {
+        type: String,
+        value: ''
+      }
+    },
+    ready: function() {
+      // Check if attributes are properly set
+      if (!this['name']) {
+        console.error('You need to set `name` to enable `idb-object-store` element.');
+        return;
+      }
+    },
+    attached: function() {
+      // Register to iron-meta
+      this.metaName = this.database.name + '-' + this.name;
+      new Polymer.IronMeta({type: 'idb', key: this.metaName, value: this});
+    },
+    /**
+     * Creates an object store if it doesn't exist
+     */
+    createObjectStore: function() {
+      this.database.createObjectStore(this['name'], this['keyPath']);
+    },
+    /**
+     * Deletes an object store if exists
+     */
+    deleteObjectStore: function() {
+      this.database.deleteObjectStore(this['name']);
+    },
+    /**
+     * Returns promise that contains IndexedDB transaction
+     * @return {Promise} Promise with idb transaction
+     */
+    transaction: function() {
+      return this.database.transaction(this['name']);
+    },
+    /**
+     * Puts a new object into the store
+     * @param  {Object} item An item to put into the store
+     * @return {Promise}     Promise with a result
+     */
+    put: function(item) {
+      var that = this;
+      return new Promise(function(resolve, reject) {
+        that.transaction().then(function(trans) {
+          // Put an object
+          var req = trans.objectStore(that['name']).put(item);
+          req.onsuccess = function(e) {
+            resolve(e.target.result);
+          }
+          req.onerror = reject;
+          trans.onerror = reject;
+        });
+      });
+    },
+    /**
+     * Puts an array of objects into the store
+     * @param {Array<Object>} items An array of objects to put into the store
+     */
+    putBulk: function(items) {
+      var that = this;
+      return new Promise(function(resolve, reject) {
+        that.transaction().then(function(trans) {
+          var store = trans.objectStore(that['name']);
+          // Put objects in loop
+          for (var i = 0; i < items.length; i++) {
+            store.put(items[i]);
+          }
+          trans.oncomplete = resolve;
+          trans.onerror = reject;
+        });
+      });
+    },
+    /**
+     * Gets an item that matches given key
+     * @param  {String} key A key to store to search for
+     * @return {Promise}    Promise with a result
+     */
+    get: function(key) {
+      var that = this;
+      return new Promise(function(resolve, reject) {
+        that.transaction().then(function(trans) {
+          // Get an object with a key
+          var req = trans.objectStore(that['name']).get(key);
+          req.onsuccess = function(e) {
+            resolve(e.target.result);
+          }
+          req.onerror = reject;
+          trans.onerror = reject;
+        });
+      });
+    },
+    /**
+     * Deletes an item that mactches given key
+     * @param  {String} key A key to database to delete
+     * @return {Promise}    Promise with a result
+     */
+    delete: function(key) {
+      var that = this;
+      return new Promise(function(resolve, reject) {
+        that.transaction().then(function(trans) {
+          // Delete an object with a key
+          var req = trans.objectStore(that['name']).delete(key);
+          req.onsuccess = function(e) {
+            resolve(e.target.result);
+          }
+          req.onerror = reject;
+          trans.onerror = reject;
+        });
+      });
+    },
+    /**
+     * Gets all items in the store
+     */
+    getAll: function() {
+      var that = this;
+      return new Promise(function(resolve, reject) {
+        that.transaction().then(function(trans) {
+          var table = [];
+          // Open a cursor
+          var req = trans.objectStore(that['name']).openCursor();
+          req.onsuccess = function(e) {
+            // Loop through cursor to obtain results
+            var cursor = e.target.result;
+            if (cursor) {
+              table.push(cursor.value);
+              cursor.continue();
+            }
+          };
+          req.onerror = reject;
+          trans.oncomplete = function(e) {
+            // Finally resolve with all results
+            resolve(table);
+          };
+          trans.onerror = reject;
+        });
+      });
+    },
+    /**
+     * Delets all items in the store
+     */
+    deleteAll: function() {
+      var that = this;
+      return new Promise(function(resolve, reject) {
+        that.transaction().then(function(trans) {
+          var store = trans.objectStore(that['name']);
+          // Open a cursor
+          var req = store.openCursor();
+          req.onsuccess = function(e) {
+            // Loop through cursor to delete objects
+            var cursor = e.target.result;
+            if (cursor) {
+              store.delete(cursor.key);
+              cursor.continue();
+            }
+          };
+          req.onerror = reject;
+          trans.oncomplete = function(e) {
+            // Finally resolve with all results
+            resolve(e.target.result);
+          }
+          trans.onerror = reject;
+        })
+      });
+    }
+  });
+</script>
